@@ -7,9 +7,9 @@ import { assets } from '../../assets/assets';
 
 const AllApointments = () => {
 
-  const { aToken, appointments, getAllAppointments } = useContext(AdminContext);
+  const { aToken, appointments, getAllAppointments , cancelAppointment } = useContext(AdminContext);
 
-  const { calculateAge, slotDateFormat,currency} = useContext(AppContext)
+  const { calculateAge, slotDateFormat, currency } = useContext(AppContext)
 
   useEffect(() => {
     if (aToken) {
@@ -44,12 +44,12 @@ const AllApointments = () => {
             <div className='flex items-center gap-2'>
               <img className='w-8 rounded-full bg-gray-200 ' src={item.docData.image} alt="" /> <p>{item.docData.name}</p>
             </div>
-<p>{currency}{item.amount}</p>
-{item.cancelled
-? <p className='text-red-500 text-xs font-medium'>Cancelled</p>
-:
-<img className='w-10 cursor-pointer' src={assets.cancel_icon} alt="" />
-}
+            <p>{currency}{item.amount}</p>
+            {item.cancelled
+              ? <p className='text-red-500 text-xs font-medium'>Cancelled</p>
+              :
+              <img onClick={()=> cancelAppointment(item._id)} className='w-10 cursor-pointer' src={assets.cancel_icon} alt="" />
+            }
 
           </div>
         ))}
