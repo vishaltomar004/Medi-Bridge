@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt'
 import userModel from '../models/userModel.js';
 import jwt from 'jsonwebtoken'
 import {v2 as cloudinary}  from 'cloudinary'
+import doctorModel from '../models/doctorModel.js';
+import appointmentModel from '../models/appointmentModel.js';
 //Api to register user
 
 const registerUser = async (req, res) => {
@@ -81,7 +83,9 @@ const loginUser = async(req, res) => {
 const getProfile = async (req, res) => {
      try {
         
-       const {userId} = req.body
+       const userId = req.userId
+    //    console.log(userId);
+       
 
        const userData = await userModel.findById(userId).select('-password')
 
@@ -98,10 +102,13 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         
-                const {userId , name , phone, address, dob, gender} =req.body
+                const { name , phone, address, dob, gender} =req.body
                 const imageFile = req.file
 
-                if(!name || !phone || !dob || ! gender){
+                const userId = req.userId;
+
+                
+                if(!name || !phone || !dob || !gender){
                     return res.json({success:false , message :"Data missing"})
                 }
                 await userModel.findByIdAndUpdate(userId , {name , phone , address : JSON.parse(address),dob, gender})
@@ -114,13 +121,86 @@ const updateProfile = async (req, res) => {
                     const imageURL = imageUpload.secure_url
 
                     await userModel.findByIdAndUpdate(userId , {image : imageURL})
-                   return res.json({success : true , message:"Profile Updated"})
+                   
                 }
+                res.json({success : true , message:"Profile Updated"})
 
     } catch (error) {
         console.log(error);
         res.json({success : false , message: error.message }); 
     }
 }
+// API to book appointment
 
-export {registerUser , loginUser, getProfile , updateProfile}
+const bookAppointment = async (req, res) => {
+
+    try {
+        
+        const { docId , slotDate , slotTime} = req.body
+
+       const userId = req.userId;
+    //    console.log("userId prashant bhai :  ", userId);
+    console.log("slotDate " , slotDate);
+    console.log("slotTime : " , slotTime);
+       let docData = await doctorModel.findById(docId).select('-password')
+    //    console.log("Received body:", req.body);
+        if(!docData.available){
+            return res.json({success:false , message :"Doctor not available"})
+        }
+
+        const slots_booked = docData.slots_booked
+
+        // checking for slot availability
+
+        if(slots_booked[slotDate]){
+            if(slots_booked[slotDate].includes(slotTime)){
+                return res.json({success:false , message :"Slot not available"})
+            }else {
+                slots_booked[slotDate].push(slotTime)
+            }
+        } else {
+            slots_booked[slotDate] =[]
+            slots_booked[slotDate].push(slotTime)
+        }
+
+        const userData = await userModel.findById(userId).select('-password')
+       
+        delete docData.slots_booked
+
+
+        const appointmentData = {
+
+            userId,
+            docId,
+            userData ,
+            docData,
+            amount : docData.fees,
+            slotTime,
+            slotDate,
+            date : Date.now()
+        }
+
+        const newAppointment = new appointmentModel(appointmentData)
+        await newAppointment.save()
+
+// save new slots data in docData
+
+await doctorModel.findByIdAndUpdate(docId , {slots_booked})
+//   console.log("Slots booked : " + slots_booked[slotDate] , slots_booked[slotTime])
+// console.log("slotDate1 " , slotDate);
+// console.log("slotTime1 : " , slotTime);
+console.log(slots_booked)
+
+
+res.json({success:true , message:"Appointment booked"})
+
+    } catch (error) {
+        
+        console.log(error);
+        res.json({success : false , message : error.message})
+        
+    }
+}
+
+
+export {registerUser , loginUser, getProfile , updateProfile, bookAppointment}
